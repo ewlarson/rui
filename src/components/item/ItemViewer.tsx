@@ -18,6 +18,8 @@ interface ItemViewerProps {
   data: {
     attributes: {
       dct_references_s: string | Record<string, string>;
+      ui_allmaps_id?: string;
+      ui_allmaps_annotated?: boolean;
       [key: string]: any;
     };
   };
@@ -48,6 +50,11 @@ export function ItemViewer({
 
   // Helper function to determine viewer type
   const getViewerType = (protocol: string) => {
+    if (data.attributes.ui_allmaps_id && 
+        data.attributes.ui_allmaps_annotated === true && 
+        protocol === 'iiif_manifest') {
+      return 'allmaps';
+    }
     if (['iiif_manifest', 'iiif_image'].includes(protocol)) {
       return 'clover';
     }
@@ -96,6 +103,23 @@ export function ItemViewer({
   const isWmsItem = protocol === 'wms';
 
   switch (viewerType) {
+    case 'allmaps':
+      const allmapsId = data.attributes.ui_allmaps_id;
+      const allmapsUrl = `https://viewer.allmaps.org/?url=https%3A%2F%2Fannotations.allmaps.org%2Fmanifests%2F${allmapsId}`;
+      return (
+        <div className="sticky top-[88px]">
+          <div className="viewer h-[500px]">
+            <iframe
+              src={allmapsUrl}
+              className="w-full h-full border-0"
+              title="Allmaps Viewer"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      );
+
     case 'clover':
       return (
         <div
