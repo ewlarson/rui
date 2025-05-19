@@ -121,7 +121,7 @@ export function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-4rem)]">
           <div className="col-span-1 lg:col-span-8 px-4 md:px-8 lg:px-12 py-4 lg:py-4 flex flex-col">
             <div className="space-y-6 lg:space-y-8 max-w-3xl">
-              <h1 className="text-3xl lg:text-4xl font-bold text-gray-900">
+              <h1 className="sr-only text-3xl lg:text-4xl font-bold text-gray-900">
                 BTAA Geoportal
               </h1>
 
