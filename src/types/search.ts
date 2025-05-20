@@ -8,6 +8,7 @@ export interface SearchParams {
   page: number;
   perPage: number;
   facets: FacetFilter[];
+  bbox?: string;
 }
 
 export interface SearchState extends SearchParams {

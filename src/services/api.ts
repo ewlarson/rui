@@ -349,6 +349,7 @@ export async function fetchSearchResults(
   facets: FacetFilter[] = [],
   onApiCall?: (url: string) => void,
   sort?: string,
+  bbox?: string,
   options: FetchOptions = defaultFetchOptions
 ): Promise<SearchResponse> {
   const baseUrl = import.meta.env.VITE_API_BASE_URL
@@ -363,6 +364,10 @@ export async function fetchSearchResults(
 
   if (sort && sort !== 'relevance') {
     url.searchParams.set('sort', sort);
+  }
+
+  if (bbox) {
+    url.searchParams.set('bbox', bbox);
   }
 
   facets.forEach(({ field, value }) => {

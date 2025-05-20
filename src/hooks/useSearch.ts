@@ -12,6 +12,7 @@ export interface SearchState {
   page?: number;
   facets?: FacetFilter[];
   sort?: string;
+  bbox?: string;
 }
 
 export function useSearch() {
@@ -23,7 +24,7 @@ export function useSearch() {
   const sort = searchParams.get('sort') || 'relevance';
 
   // Parse search parameters
-  const { query, page, facets } = parseSearchParams(searchParams);
+  const { query, page, facets, bbox } = parseSearchParams(searchParams);
 
   useEffect(() => {
     // Only fetch if we have a query parameter (even if empty) or facets
@@ -43,7 +44,8 @@ export function useSearch() {
           10,
           facets,
           setLastApiUrl,
-          sort
+          sort,
+          bbox
         );
         setResults(searchResults);
       } catch (err) {
@@ -55,18 +57,20 @@ export function useSearch() {
     };
 
     fetchResults();
-  }, [query, page, facets?.length, sort, setLastApiUrl]);
+  }, [query, page, facets?.length, sort, bbox, setLastApiUrl]);
 
   const updateSearch = ({
     query,
     page,
     facets,
     sort: newSort,
+    bbox: newBbox,
   }: {
     query?: string;
     page?: number;
     facets?: FacetFilter[];
     sort?: string;
+    bbox?: string;
   }) => {
     const newParams = new URLSearchParams(searchParams);
 
@@ -92,6 +96,14 @@ export function useSearch() {
         newParams.set('sort', newSort);
       } else {
         newParams.delete('sort');
+      }
+    }
+
+    if (newBbox !== undefined) {
+      if (newBbox) {
+        newParams.set('bbox', newBbox);
+      } else {
+        newParams.delete('bbox');
       }
     }
 
@@ -121,5 +133,6 @@ export function useSearch() {
     facets: facets || [],
     updateSearch,
     sort,
+    bbox,
   };
 }

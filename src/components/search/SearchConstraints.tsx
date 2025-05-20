@@ -1,24 +1,28 @@
 import React from 'react';
-import { X, Search, XCircle } from 'lucide-react';
+import { X, Search, XCircle, MapPin } from 'lucide-react';
 import type { FacetFilter } from '../../types/search';
 import { getFacetLabel } from '../../utils/facetLabels';
 
 interface SearchConstraintsProps {
   facets: FacetFilter[];
   query: string;
+  bbox?: string;
   onRemoveFacet: (facet: FacetFilter) => void;
   onRemoveQuery: () => void;
+  onRemoveBbox: () => void;
   onClearAll: () => void;
 }
 
 export function SearchConstraints({
   facets,
   query,
+  bbox,
   onRemoveFacet,
   onRemoveQuery,
+  onRemoveBbox,
   onClearAll,
 }: SearchConstraintsProps) {
-  if (facets.length === 0 && !query) return null;
+  if (facets.length === 0 && !query && !bbox) return null;
 
   return (
     <div className="mb-6">
@@ -40,6 +44,16 @@ export function SearchConstraints({
           >
             <Search size={14} className="text-blue-500" />
             <span className="text-sm">Search: {query}</span>
+            <X size={14} className="text-blue-500" />
+          </button>
+        )}
+        {bbox && (
+          <button
+            onClick={onRemoveBbox}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+          >
+            <MapPin size={14} className="text-blue-500" />
+            <span className="text-sm">Map Area</span>
             <X size={14} className="text-blue-500" />
           </button>
         )}

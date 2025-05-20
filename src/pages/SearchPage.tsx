@@ -26,11 +26,12 @@ function SearchContent() {
     totalResults: searchTotalResults,
     facets: searchFacets,
     sort,
+    bbox,
     updateSearch,
   } = useSearch();
 
   const totalPages = Math.ceil(searchTotalResults / perPage);
-  const hasSearchCriteria = query !== undefined || searchFacets.length > 0;
+  const hasSearchCriteria = query !== undefined || searchFacets.length > 0 || bbox !== undefined;
 
   const handlePageChange = (newPage: number) => {
     updateSearch({ page: newPage });
@@ -51,8 +52,12 @@ function SearchContent() {
     updateSearch({ query: '' });
   };
 
+  const handleRemoveBbox = () => {
+    updateSearch({ bbox: '' });
+  };
+
   const handleClearAll = () => {
-    updateSearch({ query: '', facets: [] });
+    updateSearch({ query: '', facets: [], bbox: '' });
   };
 
   const handleSortChange = (newSort: string) => {
@@ -92,8 +97,10 @@ function SearchContent() {
           <SearchConstraints
             facets={searchFacets}
             query={query}
+            bbox={bbox}
             onRemoveFacet={handleRemoveFacet}
             onRemoveQuery={handleRemoveQuery}
+            onRemoveBbox={handleRemoveBbox}
             onClearAll={handleClearAll}
           />
 

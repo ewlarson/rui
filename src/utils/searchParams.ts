@@ -3,6 +3,7 @@ import { SearchParams } from '../types/search';
 export function parseSearchParams(searchParams: URLSearchParams) {
   const query = searchParams.get('q') || '';
   const page = parseInt(searchParams.get('page') || '1', 10);
+  const bbox = searchParams.get('bbox') || undefined;
 
   // Get all facet parameters (now using fq instead of f)
   const facets = Array.from(searchParams.entries())
@@ -13,7 +14,7 @@ export function parseSearchParams(searchParams: URLSearchParams) {
       return { field, value };
     });
 
-  return { query, page, facets };
+  return { query, page, facets, bbox };
 }
 
 export function buildSearchParams(params: SearchParams): URLSearchParams {
@@ -29,6 +30,10 @@ export function buildSearchParams(params: SearchParams): URLSearchParams {
 
   if (params.perPage !== 10) {
     searchParams.set('per_page', params.perPage.toString());
+  }
+
+  if (params.bbox) {
+    searchParams.set('bbox', params.bbox);
   }
 
   // Add facet parameters using fq[] format
