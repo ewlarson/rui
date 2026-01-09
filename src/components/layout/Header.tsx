@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Globe2 } from 'lucide-react';
 import { SearchField } from '../SearchField';
 
+import { brandingConfig } from '../../config/branding';
+
 export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -18,9 +20,11 @@ export function Header() {
         <div className="h-16 grid grid-cols-12 items-center gap-8">
           {/* Branding - matches facets column width */}
           <div className="col-span-2 flex items-center gap-3">
-            <Globe2 className="h-8 w-8 text-blue-500" />
+            {brandingConfig.header.showLogo && (
+              <Globe2 className="h-8 w-8" style={{ color: brandingConfig.colors.primary }} />
+            )}
             <Link to="/" className="text-xl font-bold text-gray-900">
-              BTAA Geoportal
+              {brandingConfig.header.title}
             </Link>
           </div>
 

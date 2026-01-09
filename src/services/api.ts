@@ -3,6 +3,8 @@ import {
   SearchResponse,
   GeoDocumentDetails,
   SortOption,
+  Facet,
+  FacetGroup,
 } from '../types/api';
 import { FacetFilter } from '../types/search';
 
@@ -22,8 +24,8 @@ const defaultHeaders = {
   // Only include CSRF token if it exists
   ...(import.meta.env.VITE_CSRF_TOKEN
     ? {
-        'X-CSRF-Token': import.meta.env.VITE_CSRF_TOKEN,
-      }
+      'X-CSRF-Token': import.meta.env.VITE_CSRF_TOKEN,
+    }
     : {}),
 };
 
@@ -46,7 +48,7 @@ function ensureHttps(url: string): string {
 
 // Helper function to create a URL with common parameters
 function createApiUrl(baseUrl: string): URL {
-  const url = new URL(ensureHttps(baseUrl));
+  const url = new URL(ensureHttps(baseUrl), window.location.origin);
   url.searchParams.set('format', 'json');
   return url;
 }
@@ -98,39 +100,111 @@ function wktToGeoJSON(wkt: string | null): GeoJSON.FeatureCollection | null {
   }
 }
 
-function transformJsonApiResponse(jsonApiResponse: JsonApiResponse): SearchResponse {
-  // Transform documents
-  const docs = jsonApiResponse.data.map((item) => ({
+
+function transformDocument(item: any): GeoDocumentDetails {
+  const attributes = item.attributes || {};
+  const ogm = attributes.ogm || {};
+  const meta = item.meta || {};
+  const metaUi = meta.ui || {};
+  const metaViewer = meta.viewer || {};
+
+  return {
     id: item.id,
     type: item.type,
     attributes: {
       id: item.id,
-      dct_title_s: item.attributes.dct_title_s,
-      dct_creator_sm: item.attributes.dct_creator_sm || [],
-      dct_description_sm: item.attributes.dct_description_sm || [],
-      dct_publisher_sm: item.attributes.dct_publisher_sm || [],
-      dct_spatial_sm: item.attributes.dct_spatial_sm || [],
-      gbl_resourceclass_sm: item.attributes.gbl_resourceclass_sm || [],  // Will be populated from API
-      gbl_resourcetype_sm: item.attributes.gbl_resourcetype_sm || [],   // Will be populated from API
-      b1g_language_sm: item.attributes.b1g_language_sm || [],       // Will be populated from API
-      dct_subject_sm: item.attributes.dct_subject_sm || [],
-      schema_provider_s: item.attributes.dct_provenance_s || '',
-      dct_accessrights_s: item.attributes.dct_accessrights_s || '',    // Will be populated from API
-      gbl_georeferenced_b: item.attributes.gbl_georeferenced_b || '',   // Will be populated from API
-      b1g_georeferenced_allmaps_b: item.attributes.b1g_georeferenced_allmaps_b || '',
-      dct_temporal_sm: item.attributes.dct_temporal_sm || [],
-      dct_rightsholder_sm: item.attributes.dct_rightsholder_sm || [],   // Will be populated from API
-      dct_license_sm: item.attributes.dct_license_sm || [],        // Will be populated from API
-      dct_subject_sm: item.attributes.dc_subject_sm || [],
-      dct_references_s: item.attributes.dct_references_s || '',
-      locn_geometry: item.attributes.locn_geometry,
+      dct_title_s: ogm.dct_title_s,
+      dct_creator_sm: ogm.dct_creator_sm || [],
+      dct_description_sm: ogm.dct_description_sm || [],
+      dc_publisher_sm: ogm.dc_publisher_sm || [],
+      dct_spatial_sm: ogm.dct_spatial_sm || [],
+      gbl_resourceclass_sm: ogm.gbl_resourceClass_sm || ogm.gbl_resourceclass_sm || [],
+      gbl_resourcetype_sm: ogm.gbl_resourceType_sm || ogm.gbl_resourcetype_sm || [],
+      b1g_language_sm: ogm.b1g_language_sm || [],
+      dct_language_sm: ogm.dct_language_sm || [],
+      dct_subject_sm: ogm.dct_subject_sm || [],
+      dc_subject_sm: ogm.dc_subject_sm || [],
+      schema_provider_s: ogm.schema_provider_s || '',
+      dct_provenance_s: ogm.schema_provider_s || '',
+      dct_accessrights_s: ogm.dct_accessRights_s || ogm.dct_accessrights_s || '',
+      gbl_georeferenced_b: ogm.gbl_georeferenced_b ? 'true' : 'false',
+      b1g_georeferenced_allmaps_b: ogm.b1g_georeferenced_allmaps_b || '',
+      dct_temporal_sm: ogm.dct_temporal_sm || [],
+      dct_rightsholder_sm: ogm.dct_rightsholder_sm || [],
+      dct_license_sm: ogm.dct_license_sm || [],
+      dct_references_s: ogm.dct_references_s || '',
+      locn_geometry: ogm.locn_geometry,
+      gbl_wxsidentifier_s: ogm.gbl_wxsIdentifier_s || '',
+      ui_downloads: metaUi.downloads || [],
+      ui_citation: metaUi.citation || '',
     },
-    ui_thumbnail_url: item.attributes.ui_thumbnail_url || '',
-    ui_citation: '',  // Will be populated from API
-    ui_viewer_protocol: item.attributes.ui_viewer_protocol || '',
-    ui_viewer_endpoint: item.attributes.ui_viewer_endpoint || '',
-    ui_viewer_geometry: item.attributes.ui_viewer_geometry || wktToGeoJSON(item.attributes.locn_geometry),
-  }));
+    ui_thumbnail_url: metaUi.thumbnail_url || attributes.ui_thumbnail_url || '',
+    ui_citation: metaUi.citation || '',
+    ui_viewer_protocol: metaViewer.protocol || attributes.ui_viewer_protocol || '',
+    ui_viewer_endpoint: metaViewer.endpoint || attributes.ui_viewer_endpoint || '',
+    ui_viewer_geometry: metaViewer.geometry || attributes.ui_viewer_geometry || wktToGeoJSON(ogm.locn_geometry || null),
+    // Detailed fields
+    creator_sm: ogm.dct_creator_sm || [],
+    dct_spatial_sm: ogm.dct_spatial_sm || [],
+    dc_subject_sm: ogm.dc_subject_sm || [],
+  };
+}
+// ...
+export async function fetchSearchResults(
+  query: string,
+  page: number = 1,
+  perPage: number = 10,
+  facets: FacetFilter[] = [],
+  onApiCall?: (url: string) => void,
+  sort?: string,
+  bbox?: string,
+  options: FetchOptions = defaultFetchOptions
+): Promise<SearchResponse> {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL
+    ? `${import.meta.env.VITE_API_BASE_URL}/search`
+    : 'https://geo.btaa.org/api/v1/search';
+  const url = createApiUrl(baseUrl);
+
+  // Ensure we ask for JSON:API format to get metadata like thumbnails
+  url.searchParams.set('response_format', 'json_api');
+  url.searchParams.set('datetime_format', 'iso8601');
+
+  url.searchParams.set('search_field', 'all_fields');
+  url.searchParams.set('q', query);
+  url.searchParams.set('page', page.toString());
+  url.searchParams.set('per_page', perPage.toString());
+
+  if (sort && sort !== 'relevance') {
+    url.searchParams.set('sort', sort);
+  }
+
+  if (bbox) {
+    url.searchParams.set('bbox', bbox);
+  }
+
+  facets.forEach(({ field, value }) => {
+    url.searchParams.append(`fq[${field}][]`, value);
+  });
+
+  if (onApiCall) {
+    onApiCall(url.toString());
+  }
+
+  try {
+    const response = await unifiedFetch<JsonApiResponse>(
+      url.toString(),
+      options
+    );
+    return transformJsonApiResponse(response);
+  } catch (error) {
+    console.error('Search error:', error);
+    throw error;
+  }
+}
+
+function transformJsonApiResponse(jsonApiResponse: JsonApiResponse): SearchResponse {
+  // Transform documents
+  const docs = jsonApiResponse.data.map(transformDocument);
 
   // Transform included facets
   const facets = jsonApiResponse.included
@@ -138,11 +212,11 @@ function transformJsonApiResponse(jsonApiResponse: JsonApiResponse): SearchRespo
     .reduce((acc, facet) => {
       acc[facet.id] = {
         label: facet.attributes.label,
-        items: facet.attributes.items.map(item => ({
-          label: item.attributes.label,
-          value: item.attributes.value,
-          hits: item.attributes.hits,
-          url: item.links.self,
+        items: facet.attributes.items.map(([value, hits]) => ({
+          label: value.toString(),
+          value: value,
+          hits: hits,
+          url: facet.links.applyTemplate.replace('{value}', encodeURIComponent(value.toString())),
         })),
       };
       return acc;
@@ -152,48 +226,159 @@ function transformJsonApiResponse(jsonApiResponse: JsonApiResponse): SearchRespo
   const sortOptions = jsonApiResponse.included
     ?.filter((item): item is SortOption => item.type === 'sort')
     .map(item => ({
+      type: 'sort' as const,
       id: item.id,
-      label: item.attributes.label,
-      url: item.links.self,
+      attributes: {
+        label: item.attributes.label,
+      },
+      links: {
+        self: item.links.self,
+      },
     }));
 
   return {
     response: {
       docs,
-      numFound: jsonApiResponse.meta.pages.total_count,
-      start: ((jsonApiResponse.meta.pages.current_page || 1) - 1) * 10,
+      numFound: jsonApiResponse.meta.totalCount,
+      start: ((jsonApiResponse.meta.currentPage || 1) - 1) * 10,
       maxScore: 1.0,
     },
     facets: facets || {},
     sortOptions: sortOptions || [],
     meta: {
       pages: {
-        current_page: jsonApiResponse.meta.pages.current_page,
-        next_page: null,  // Will be calculated if needed
-        prev_page: null,  // Will be calculated if needed
-        total_pages: jsonApiResponse.meta.pages.total_pages,
-        limit_value: 10,  // Default page size
-        offset_value: ((jsonApiResponse.meta.pages.current_page || 1) - 1) * 10,
-        total_count: jsonApiResponse.meta.pages.total_count,
-        first_page: jsonApiResponse.meta.pages.current_page === 1,
-        last_page: jsonApiResponse.meta.pages.current_page === jsonApiResponse.meta.pages.total_pages,
+        current_page: jsonApiResponse.meta.currentPage,
+        next_page: null,
+        prev_page: null,
+        total_pages: jsonApiResponse.meta.totalPages,
+        limit_value: 10,
+        offset_value: ((jsonApiResponse.meta.currentPage || 1) - 1) * 10,
+        total_count: jsonApiResponse.meta.totalCount,
+        first_page: jsonApiResponse.meta.currentPage === 1,
+        last_page: jsonApiResponse.meta.currentPage === jsonApiResponse.meta.totalPages,
       },
-      spelling_suggestions: jsonApiResponse.meta.spelling_suggestions || [],
+      spelling_suggestions: jsonApiResponse.meta.spellingSuggestions || [],
     },
   };
 }
 
+// ... jsonp and unifiedFetch ...
+
+export async function fetchItemDetails(
+  id: string,
+  onApiCall?: (url: string) => void,
+  options: FetchOptions = defaultFetchOptions
+): Promise<GeoDocumentDetails> {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL
+    ? `${import.meta.env.VITE_API_BASE_URL}/resources/`
+    : 'https://geo.btaa.org/';
+  const url = createApiUrl(`${baseUrl}${id}`);
+
+  // Ensure we ask for JSON:API format
+  url.searchParams.set('response_format', 'json_api');
+  url.searchParams.set('datetime_format', 'iso8601');
+
+  onApiCall?.(url.toString());
+
+  try {
+    const response = await unifiedFetch<{
+      data: {
+        id: string;
+        type: string;
+        attributes: {
+          ogm: any;
+          b1g?: any
+        }
+      };
+      meta?: {
+        ui?: any;
+        viewer?: any;
+      }
+    }>(
+      url.toString(),
+      options
+    );
+    console.log('Item details response:', response);
+
+    const item = response.data;
+    const ogm = item.attributes.ogm || {};
+    const metaUi = response.meta?.ui || {};
+    const metaViewer = response.meta?.viewer || {};
+
+    // Map API fields (CamelCase) to internal types (lowercase)
+    const attributes = {
+      id: item.id,
+      dct_title_s: ogm.dct_title_s,
+      dct_creator_sm: ogm.dct_creator_sm || [],
+      dct_description_sm: ogm.dct_description_sm || [],
+      dc_publisher_sm: ogm.dc_publisher_sm || [],
+      dct_spatial_sm: ogm.dct_spatial_sm || [],
+      gbl_resourceclass_sm: ogm.gbl_resourceClass_sm || [],
+      gbl_resourcetype_sm: ogm.gbl_resourceType_sm || [],
+      b1g_language_sm: ogm.b1g_language_sm || [], // Check casing? Response had dct_language_sm
+      dct_language_sm: ogm.dct_language_sm || [],
+      dct_subject_sm: ogm.dct_subject_sm || [],
+      dc_subject_sm: ogm.dc_subject_sm || [],
+      schema_provider_s: ogm.schema_provider_s || '',
+      dct_provenance_s: ogm.schema_provider_s || '', // Map provider to provenance if missing?
+      dct_accessrights_s: ogm.dct_accessRights_s || '',
+      gbl_georeferenced_b: ogm.gbl_georeferenced_b ? 'true' : 'false',
+      b1g_georeferenced_allmaps_b: ogm.b1g_georeferenced_allmaps_b || '',
+      dct_temporal_sm: ogm.dct_temporal_sm || [],
+      dct_issued_s: ogm.dct_issued_s || '',
+      dct_rightsholder_sm: ogm.dct_rightsholder_sm || [],
+      dct_license_sm: ogm.dct_license_sm || [],
+      dct_references_s: ogm.dct_references_s || '',
+      locn_geometry: ogm.locn_geometry,
+      gbl_wxsidentifier_s: ogm.gbl_wxsIdentifier_s || '', // Guessing casing or might be absent
+      dct_identifier_sm: ogm.dct_identifier_sm || [],
+      dct_format_s: ogm.dct_format_s || '',
+
+      // Inject UI fields into attributes for legacy components if they look there
+      ui_downloads: metaUi.downloads || [],
+      ui_relationships: metaUi.relationships || {},
+      ui_citation: metaUi.citation || '',
+    };
+
+    return {
+      id: item.id,
+      type: item.type,
+      attributes: attributes, // Top level attributes
+      ui_thumbnail_url: metaUi.thumbnail_url || '',
+      ui_citation: metaUi.citation || '',
+      ui_viewer_protocol: metaViewer.protocol || '',
+      ui_viewer_endpoint: metaViewer.endpoint || '',
+      ui_viewer_geometry: metaViewer.geometry || wktToGeoJSON(ogm.locn_geometry || null),
+
+      // Helper fields for GeoDocumentDetails
+      creator_sm: ogm.dct_creator_sm || [],
+      dct_spatial_sm: ogm.dct_spatial_sm || [],
+      dc_subject_sm: ogm.dc_subject_sm || [],
+    };
+  } catch (error) {
+    console.error('Error fetching item details:', error);
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(
+      `Failed to fetch item details: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+// ... jsonp and unifiedFetch ...
+
 // Update the jsonp function to use the cache
 function jsonp<T>(url: string, callbackName: string = 'rui'): Promise<T> {
   console.log('Starting JSONP request:', url);
-  
+
   // Check if this URL is already being requested
   const cacheKey = url;
   if (requestCache[cacheKey]) {
     console.log('Using cached JSONP request for:', url);
     return requestCache[cacheKey] as Promise<T>;
   }
-  
+
   // Create a new promise for this request
   const requestPromise = new Promise<T>((resolve, reject) => {
     const uniqueCallback = `${callbackName}_${Date.now()}`;
@@ -261,13 +446,13 @@ function jsonp<T>(url: string, callbackName: string = 'rui'): Promise<T> {
         delete requestCache[cacheKey];
       };
       script.crossOrigin = 'anonymous';
-      
+
       // Only append the script to the document once
       document.head.appendChild(script);
       console.log('JSONP script added to document');
     }
   });
-  
+
   // Store the promise in the cache
   requestCache[cacheKey] = requestPromise;
   return requestPromise;
@@ -281,7 +466,7 @@ async function unifiedFetch<T>(
   url: string,
   options: FetchOptions = defaultFetchOptions
 ): Promise<T> {
-  const finalUrl = new URL(ensureHttps(url));
+  const finalUrl = new URL(ensureHttps(url), window.location.origin);
   console.log('unifiedFetch called with options:', {
     url: finalUrl.toString(),
     useJsonp: options.useJsonp,
@@ -301,7 +486,7 @@ async function unifiedFetch<T>(
   console.log('Using regular fetch:', finalUrl.toString());
 
   // For document endpoints, request a specific response format
-  if (url.includes('/items/')) {
+  if (url.includes('/resources/')) {
     finalUrl.searchParams.set('response_format', 'json_api');
     finalUrl.searchParams.set('datetime_format', 'iso8601');
   }
@@ -342,82 +527,9 @@ async function unifiedFetch<T>(
   }
 }
 
-export async function fetchSearchResults(
-  query: string,
-  page: number = 1,
-  perPage: number = 10,
-  facets: FacetFilter[] = [],
-  onApiCall?: (url: string) => void,
-  sort?: string,
-  bbox?: string,
-  options: FetchOptions = defaultFetchOptions
-): Promise<SearchResponse> {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL
-    ? `${import.meta.env.VITE_API_BASE_URL}/search`
-    : 'https://geo.btaa.org/api/v1/search';
-  const url = createApiUrl(baseUrl);
 
-  url.searchParams.set('search_field', 'all_fields');
-  url.searchParams.set('q', query);
-  url.searchParams.set('page', page.toString());
-  url.searchParams.set('per_page', perPage.toString());
 
-  if (sort && sort !== 'relevance') {
-    url.searchParams.set('sort', sort);
-  }
-
-  if (bbox) {
-    url.searchParams.set('bbox', bbox);
-  }
-
-  facets.forEach(({ field, value }) => {
-    url.searchParams.append(`fq[${field}][]`, value);
-  });
-
-  if (onApiCall) {
-    onApiCall(url.toString());
-  }
-
-  try {
-    const response = await unifiedFetch<JsonApiResponse>(
-      url.toString(),
-      options
-    );
-    return transformJsonApiResponse(response);
-  } catch (error) {
-    console.error('Search error:', error);
-    throw error;
-  }
-}
-
-export async function fetchItemDetails(
-  id: string,
-  onApiCall?: (url: string) => void,
-  options: FetchOptions = defaultFetchOptions
-): Promise<GeoDocumentDetails> {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL
-    ? `${import.meta.env.VITE_API_BASE_URL}/items/`
-    : 'https://geo.btaa.org/';
-  const url = createApiUrl(`${baseUrl}${id}`);
-  onApiCall?.(url.toString());
-
-  try {
-    const response = await unifiedFetch<GeoDocumentDetails>(
-      url.toString(),
-      options
-    );
-    console.log('Item details response:', response); // Add debugging
-    return response;
-  } catch (error) {
-    console.error('Error fetching item details:', error); // Add debugging
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    throw new ApiError(
-      `Failed to fetch item details: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
-}
+// NOTE: fetchItemDetails is already defined above, ensuring no duplicates.
 
 interface Suggestion {
   type: 'suggestion';
@@ -470,8 +582,21 @@ export async function fetchBookmarkedItems(
 ): Promise<SearchResponse> {
   if (ids.length === 0) {
     return {
-      response: { docs: [], numFound: 0, start: 0 },
+      response: { docs: [], numFound: 0, start: 0, maxScore: 0 },
       facets: {},
+      sortOptions: [],
+      meta: {
+        pages: {
+          current_page: 1,
+          total_pages: 0,
+          limit_value: 10,
+          offset_value: 0,
+          total_count: 0,
+          next_page: null,
+          prev_page: null
+        },
+        spelling_suggestions: []
+      }
     };
   }
 

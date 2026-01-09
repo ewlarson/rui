@@ -1,8 +1,8 @@
 import React from 'react';
-import type { GeoDocument } from '../../types/api';
+import type { GeoAttributes } from '../../types/api';
 
 interface ItemSubtitleProps {
-  item: GeoDocument;
+  item: GeoAttributes;
 }
 
 export function ItemSubtitle({ item }: ItemSubtitleProps) {

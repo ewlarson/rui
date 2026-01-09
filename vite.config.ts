@@ -6,9 +6,19 @@ import type { IncomingMessage, ServerResponse } from 'http';
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '');
-  
+
   return {
     base: env.VITE_BASE_URL || '/',
+    server: {
+      allowedHosts: ['omg-api-ui.ngrok.io'],
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
     plugins: [
       react(),
       {
@@ -18,7 +28,7 @@ export default defineConfig(({ mode }) => {
           const { handleWmsRequest } = await import('./server/middleware/wms');
 
           server.middlewares.use(express.json());
-          
+
           // Add WMS endpoint
           server.middlewares.use('/wms/handle', (req: IncomingMessage, res: ServerResponse, next) => {
             if (req.method === 'POST') {

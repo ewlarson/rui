@@ -14,6 +14,7 @@ import {
   Search,
 } from 'lucide-react';
 import { fetchSearchResults } from '../services/api';
+import { brandingConfig } from '../config/branding';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -25,9 +26,9 @@ export function HomePage() {
   useEffect(() => {
     const fetchCounts = async () => {
       try {
-        const results = await fetchSearchResults('', 1, 0);
+        const results = await fetchSearchResults('', 1, 1);
         const facetCounts =
-          results.facets?.['resource_class_agg']?.items.reduce(
+          results.facets?.['gbl_resourceClass_sm']?.items.reduce(
             (acc, item) => {
               acc[item.value as string] = item.hits;
               return acc;
@@ -105,7 +106,7 @@ export function HomePage() {
 
   const handleResourceClassClick = (aggValue: string) => {
     navigate(
-      `/search?fq[resource_class_agg][]=${encodeURIComponent(aggValue)}`
+      `/search?fq[gbl_resourceClass_sm][]=${encodeURIComponent(aggValue)}`
     );
   };
 
@@ -122,12 +123,11 @@ export function HomePage() {
           <div className="col-span-1 lg:col-span-8 px-4 md:px-8 lg:px-12 py-4 lg:py-4 flex flex-col">
             <div className="space-y-6 lg:space-y-8 max-w-3xl">
               <h1 className="sr-only text-3xl lg:text-4xl font-bold text-gray-900">
-                BTAA Geoportal
+                {brandingConfig.appTitle}
               </h1>
 
               <p className="text-lg lg:text-xl text-gray-600">
-                Search geospatial resources from Big Ten Academic Alliance
-                institutions
+                Search geospatial resources from {brandingConfig.institutionName} institutions
               </p>
 
               <div className="w-full">

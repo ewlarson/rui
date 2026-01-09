@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
-import type { GeoDocument } from '../../types/api';
+import type { GeoAttributes } from '../../types/api';
 
 interface ItemBreadcrumbsProps {
-  item: GeoDocument;
+  item: GeoAttributes;
 }
 
 export function ItemBreadcrumbs({ item }: ItemBreadcrumbsProps) {

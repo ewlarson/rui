@@ -2,9 +2,10 @@ import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import { useApi } from '../../context/ApiContext';
 import { useDebug } from '../../context/DebugContext';
+import { brandingConfig } from '../../config/branding';
 
 interface FooterProps {
-  id?: string; // Make optional since not all pages will have an ID
+  id?: string;
 }
 
 export function Footer({ id }: FooterProps) {
@@ -22,8 +23,7 @@ export function Footer({ id }: FooterProps) {
           {/* Links Row */}
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-500">
-              © {new Date().getFullYear()} Big Ten Academic Alliance. All
-              rights reserved.
+              {brandingConfig.footer.text}
             </div>
             <div className="flex items-center space-x-4">
               {id && (
@@ -33,7 +33,7 @@ export function Footer({ id }: FooterProps) {
                   rel="noopener noreferrer"
                   className="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1"
                 >
-                  View in BTAA Geoportal
+                  View in {brandingConfig.appTitle}
                   <ExternalLink size={14} />
                 </a>
               )}
