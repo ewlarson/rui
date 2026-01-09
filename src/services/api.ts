@@ -288,22 +288,41 @@ export async function fetchItemDetails(
         attributes: {
           ogm: any;
           b1g?: any
-        }
+        };
+        meta?: {
+          ui?: any;
+          viewer?: any;
+          similar_items?: any[];
+        };
       };
-      meta?: {
-        ui?: any;
-        viewer?: any;
-      }
+      meta?: any; // Top level meta might exist but is not relevant for item details
     }>(
       url.toString(),
       options
     );
-    console.log('Item details response:', response);
+    console.log('Item details response raw:', response);
 
     const item = response.data;
+    console.log('Item details item meta stringified:', JSON.stringify(item.meta, null, 2));
+    if (item.meta) {
+      console.log('Keys of item.meta:', Object.keys(item.meta));
+      console.log('Keys of item.meta.ui:', Object.keys(item.meta.ui || {}));
+      console.log('Keys of item.meta.viewer:', Object.keys(item.meta.viewer || {}));
+    }
+    console.log('Item details response raw stringified:', JSON.stringify(response, null, 2));
+
     const ogm = item.attributes.ogm || {};
-    const metaUi = response.meta?.ui || {};
-    const metaViewer = response.meta?.viewer || {};
+
+    // Robust meta extraction: check sibling first, then attributes.meta
+    const meta = item.meta || item.attributes?.meta || {};
+    console.log('Using meta source:', item.meta ? 'item.meta' : 'item.attributes.meta');
+
+    const metaUi = meta.ui || {};
+
+    // Extract nested fields from UI object (primary) or meta object (legacy)
+    const metaViewer = metaUi.viewer || meta.viewer || {};
+    const similarItems = metaUi.similar_items || meta.similar_items || [];
+    const relationships = metaUi.relationships || meta.relationships || {};
 
     // Map API fields (CamelCase) to internal types (lowercase)
     const attributes = {
@@ -336,8 +355,9 @@ export async function fetchItemDetails(
 
       // Inject UI fields into attributes for legacy components if they look there
       ui_downloads: metaUi.downloads || [],
-      ui_relationships: metaUi.relationships || {},
+      ui_relationships: relationships,
       ui_citation: metaUi.citation || '',
+      ui_links: metaUi.links || {},
     };
 
     return {
@@ -349,6 +369,8 @@ export async function fetchItemDetails(
       ui_viewer_protocol: metaViewer.protocol || '',
       ui_viewer_endpoint: metaViewer.endpoint || '',
       ui_viewer_geometry: metaViewer.geometry || wktToGeoJSON(ogm.locn_geometry || null),
+      ui_links: metaUi.links || {},
+      similar_items: similarItems,
 
       // Helper fields for GeoDocumentDetails
       creator_sm: ogm.dct_creator_sm || [],

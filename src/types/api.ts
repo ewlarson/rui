@@ -43,6 +43,13 @@ export interface GeoDocumentDetails extends GeoDocument {
   creator_sm: string[];
   dct_spatial_sm: string[];
   dc_subject_sm: string[];
+  ui_links?: Record<string, { label: string; url: string }[]>;
+  similar_items?: {
+    id: string;
+    title: string;
+    thumbnail_url?: string;
+    temporal_coverage?: string[];
+  }[];
 }
 
 export interface ParsedFacet {

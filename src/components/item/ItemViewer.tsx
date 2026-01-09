@@ -39,6 +39,7 @@ export function ItemViewer({
   data,
   pageValue,
 }: ItemViewerProps) {
+  console.log('ItemViewer props:', { protocol, endpoint, wxs_identifier });
   // Convert dct_references_s to string if it's an object
   const references =
     typeof data.attributes.dct_references_s === 'string'
@@ -50,9 +51,9 @@ export function ItemViewer({
 
   // Helper function to determine viewer type
   const getViewerType = (protocol: string) => {
-    if (data.attributes.ui_allmaps_id && 
-        data.attributes.ui_allmaps_annotated === true && 
-        protocol === 'iiif_manifest') {
+    if (data.attributes.ui_allmaps_id &&
+      data.attributes.ui_allmaps_annotated === true &&
+      protocol === 'iiif_manifest') {
       return 'allmaps';
     }
     if (['iiif_manifest', 'iiif_image'].includes(protocol)) {
@@ -170,20 +171,20 @@ export function ItemViewer({
             {...(endpoint ? { 'data-leaflet-viewer-url-value': endpoint } : {})}
             {...(protocol
               ? {
-                  'data-leaflet-viewer-protocol-value':
-                    formatProtocol(protocol),
-                }
+                'data-leaflet-viewer-protocol-value':
+                  formatProtocol(protocol),
+              }
               : {})}
             {...(isWmsItem
               ? {
-                  'data-action':
-                    'leaflet-viewer:getFeatureInfo->application#handleWmsFeatureInfo',
-                }
+                'data-action':
+                  'leaflet-viewer:getFeatureInfo->application#handleWmsFeatureInfo',
+              }
               : {})}
             {...(isWmsItem
               ? {
-                  'data-wms-feature-info-url': `${import.meta.env.VITE_WMS_BASE_URL}`,
-                }
+                'data-wms-feature-info-url': `${import.meta.env.VITE_WMS_BASE_URL}`,
+              }
               : {})}
           />
         </div>

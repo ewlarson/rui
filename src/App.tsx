@@ -18,9 +18,25 @@ window.Stimulus = application;
 console.log('Stimulus initialized:', window.Stimulus);
 
 // Import Geoblacklight after Stimulus is initialized
-import('@geoblacklight/frontend').then((Geoblacklight) => {
+import('@geoblacklight/frontend').then((module) => {
+  const Geoblacklight = module.default;
   window.Geoblacklight = Geoblacklight;
   console.log('Geoblacklight initialized:', window.Geoblacklight);
+
+  // Register controllers
+  // The application instance is stored in window.Stimulus
+  const app = window.Stimulus;
+
+  if (Geoblacklight && app) {
+    app.register('clover-viewer', Geoblacklight.CloverViewerController);
+    app.register('leaflet-viewer', Geoblacklight.LeafletViewerController);
+    app.register('openlayers-viewer', Geoblacklight.OpenlayersViewerController);
+    app.register('oembed-viewer', Geoblacklight.OembedViewerController);
+    app.register('clipboard', Geoblacklight.ClipboardController);
+    app.register('downloads', Geoblacklight.DownloadsController);
+    app.register('search-results', Geoblacklight.SearchResultsController);
+    console.log('Geoblacklight controllers registered');
+  }
 });
 
 function App() {

@@ -17,6 +17,8 @@ import { CitationTable } from '../components/item/CitationTable';
 import { FullDetailsTable } from '../components/item/FullDetailsTable';
 import { LocationMap } from '../components/item/LocationMap';
 import { DownloadsTable } from '../components/item/DownloadsTable';
+import { SimilarItems } from '../components/item/SimilarItems';
+import { LinksTable } from '../components/item/LinksTable';
 import { GeoDocumentDetails } from '../types/api';
 
 // Define types for search results
@@ -444,6 +446,8 @@ export function ItemView() {
 
               {/* Add Full Details table */}
               <FullDetailsTable data={legacyData} />
+
+              <SimilarItems items={data.similar_items} />
             </div>
 
             {/* Sidebar */}
@@ -464,11 +468,13 @@ export function ItemView() {
                 {/* Check if ui_downloads exists in attributes? It might only be in raw attributes */}
                 {/* It's not in GeoDocumentDetails interface. We might need to fetch it from raw item or add to interface */}
                 {/* For now assuming it is missing or checking if it was mapped */}
-                {(data.attributes as any).ui_downloads && (
+                {(data.attributes).ui_downloads && (
                   <DownloadsTable
-                    downloads={(data.attributes as any).ui_downloads}
+                    downloads={data.attributes.ui_downloads}
                   />
                 )}
+
+                <LinksTable links={data.ui_links} />
 
                 {/* Citation policy */}
                 {/* ui_citation is in GeoDocumentDetails top level */}

@@ -30,8 +30,10 @@ const fetchDocumentTitle = async (id: string): Promise<string> => {
 
 const relationshipLabels: { [key: string]: string } = {
   memberOf: 'Belongs to collection...',
+  'pcdm:memberOf': 'Belongs to collection...',
   hasMember: 'Collection records...',
   isPartOf: 'Is part of...',
+  'dct:isPartOf': 'Is part of...',
   hasPart: 'Has part...',
   relation: 'Related records...',
   replaces: 'Replaces...',
@@ -167,28 +169,28 @@ export function FullDetailsTable({ data }: FullDetailsTableProps) {
     if (!relationships || Object.keys(relationships).length === 0) {
       return null;
     }
-    
+
     return Object.entries(relationships).map(([relationshipType, items]) => {
       if (!Array.isArray(items) || items.length === 0) return null;
-      
+
       // Get the total count of items
       const totalCount = items.length;
-      
+
       // Only display the first 5 items
       const displayItems = items.slice(0, 5);
-      
+
       // Determine if we need to show the "Browse all" link
       const showBrowseAll = totalCount > 5;
-      
+
       // Map relationship type to its corresponding facet field if it exists
       // This would depend on how your search system handles relationship facets
       // For example: memberOf -> member_of_agg, source -> source_agg, etc.
       const relationshipFacetField = `${relationshipType}_agg`;
-      
+
       // Get the ID of the current item to use as a filter
       // Ensure it's a string value for encodeURIComponent
       const currentItemId = String(attributes.id || '');
-      
+
       return (
         <div key={relationshipType} className="mb-4">
           <h5 className="text-sm font-medium text-gray-500">
@@ -196,17 +198,28 @@ export function FullDetailsTable({ data }: FullDetailsTableProps) {
           </h5>
           <ul className="list-none">
             {/* Display the first 5 items */}
-            {displayItems.map((doc: { item_id: string; item_title: string; link: string }) => (
-              <li key={doc.item_id} className="text-sm text-gray-900">
-                <Link
-                  to={`/items/${doc.item_id}`}
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  {doc.item_title}
-                </Link>
-              </li>
-            ))}
-            
+            {displayItems.map((doc: any) => {
+              // Handle both API structures:
+              // 1. {id, label} (some APIs)
+              // 2. {item_id, item_title} (legacy)
+              // 3. {resource_id, resource_title} (current JSON:API)
+              const itemId = doc.id || doc.item_id || doc.resource_id;
+              const itemTitle = doc.label || doc.item_title || doc.resource_title;
+
+              if (!itemId || !itemTitle) return null;
+
+              return (
+                <li key={itemId} className="text-sm text-gray-900">
+                  <Link
+                    to={`/items/${itemId}`}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    {itemTitle}
+                  </Link>
+                </li>
+              );
+            })}
+
             {/* Show "Browse all" link if there are more than 5 items */}
             {showBrowseAll && (
               <li className="text-sm text-gray-900 mt-2 pt-2 border-t border-gray-200">
